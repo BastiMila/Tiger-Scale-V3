@@ -44,15 +44,15 @@ the source, so this table cannot silently disagree with the file.
 | 18 | Shared weight push handler | 10386–10489 |
 | 19 | Web server (all HTTP routes) | 10490–11518 |
 | 20 | Cloud communication | 11519–11701 |
-| 21 | Weigh workflow state machine | 11702–12209 |
-| 22 | mDNS | 12210–12247 |
-| 23 | Scale (HX711 init, filtering, calibration) | 12248–12418 |
-| AUDIO | ES8311 codec beep (I2S slave, I2C 0x18) | 12419–12536 |
-| 24 | RFID (PN532 via `PN532Reader`, tag reading) | 12537–13619 |
-| 25 | OTA (firmware + filesystem update) | 13620–14299 |
-| LVGL | LVGL bridge + main weigh screen | 14300–15239 |
-| LIVE | Remote live view: the screen out, taps back in | 15240–16089 |
-| 26 | `setup()` + `loop()` | 16090–17335 |
+| 21 | Weigh workflow state machine | 11702–12225 |
+| 22 | mDNS | 12226–12263 |
+| 23 | Scale (HX711 init, filtering, calibration) | 12264–12434 |
+| AUDIO | ES8311 codec beep (I2S slave, I2C 0x18) | 12435–12552 |
+| 24 | RFID (PN532 via `PN532Reader`, tag reading) | 12553–13635 |
+| 25 | OTA (firmware + filesystem update) | 13636–14315 |
+| LVGL | LVGL bridge + main weigh screen | 14316–15255 |
+| LIVE | Remote live view: the screen out, taps back in | 15256–16105 |
+| 26 | `setup()` + `loop()` | 16106–17351 |
 
 Two gaps and two oddities in that numbering, all deliberate:
 
@@ -109,29 +109,29 @@ Two gaps and two oddities in that numbering, all deliberate:
 | `pushWeightToCloud` | 11628 | §20 |
 | `fetchMetaFromApiByUid` | 11666 | §20 |
 | `handleWeighWorkflow` | 11755 | §21 |
-| `startMDNS` | 12213 | §22 |
-| `setupScale` | 12251 | §23 |
-| `isRapidChange` | 12282 | §23 |
-| `readWeight` | 12318 | §23 |
-| `playSoundTheme` | 12498 | §AUDIO |
-| `rfidSelectReader` | 12690 | §24 |
-| `normalizeRfidHwConfig` | 12744 | §24 |
-| `setupRFID` | 12754 | §24 |
-| `setupServo` | 12970 | §24 |
-| `processAutoTare` | 12984 | §24 |
-| `fetchMetaFromFirestore` | 13304 | §24 |
-| `readTigerTagMetadata` | 13406 | §24 |
-| `pollRFIDReader` | 13495 | §24 |
-| `recoverRFIDReaderIfNeeded` | 13578 | §24 |
-| `isDuplicateRecentUid` | 13598 | §24 |
-| `isUidLatched` | 13602 | §24 |
-| `finishRfidSession` | 13614 | §24 |
-| `otaApply` | 13807 | §25 |
-| `otaFetchLatest` | 13949 | §25 |
-| `lvglBuildMainScreen` | 14554 | §LVGL |
-| `lvglUpdateMainScreen` | 14982 | §LVGL |
-| `setup` | 16109 | §26 |
-| `loop` | 16281 | §26 |
+| `startMDNS` | 12229 | §22 |
+| `setupScale` | 12267 | §23 |
+| `isRapidChange` | 12298 | §23 |
+| `readWeight` | 12334 | §23 |
+| `playSoundTheme` | 12514 | §AUDIO |
+| `rfidSelectReader` | 12706 | §24 |
+| `normalizeRfidHwConfig` | 12760 | §24 |
+| `setupRFID` | 12770 | §24 |
+| `setupServo` | 12986 | §24 |
+| `processAutoTare` | 13000 | §24 |
+| `fetchMetaFromFirestore` | 13320 | §24 |
+| `readTigerTagMetadata` | 13422 | §24 |
+| `pollRFIDReader` | 13511 | §24 |
+| `recoverRFIDReaderIfNeeded` | 13594 | §24 |
+| `isDuplicateRecentUid` | 13614 | §24 |
+| `isUidLatched` | 13618 | §24 |
+| `finishRfidSession` | 13630 | §24 |
+| `otaApply` | 13823 | §25 |
+| `otaFetchLatest` | 13965 | §25 |
+| `lvglBuildMainScreen` | 14570 | §LVGL |
+| `lvglUpdateMainScreen` | 14998 | §LVGL |
+| `setup` | 16125 | §26 |
+| `loop` | 16297 | §26 |
 
 ## Landmines — read the note before editing these
 
@@ -141,7 +141,7 @@ a debugging session at least once.
 | Function | What you need to know first |
 |----------|------------------------------|
 | `setupRFID` | RFID transport is a **build-time** choice, never runtime. Building the env that does not match the physical wiring yields firmware that finds no reader and says nothing about why. The bench-verified unit is HSU on a -3.5B board → `-e esp32s3_hsu_b`. The SPI-only `SPI.begin()` inside is guarded for exactly this reason: it used to claim GPIO47/48/41 before `Serial1`/`Serial2` could bind them, so the HSU build transmitted nothing at all. |
-| `handleWeighWorkflow` | The removal-detected reset block captures `gRecentlyRemovedUid1`/`2` and `gRemovalDetectedMs` from `lastUID`/`lastUID2` *just before* clearing them. That is what lets a delayed RFID echo of a tag that was just lifted off be told apart from a genuinely new tag — the fix for the phantom triple-beep on spool removal. Its `WF_IDLE` branch must also keep clearing `lastUID`/`lastUID2`/`lastUIDLeft`/`lastUIDRight` once weight drops below `MIN_WEIGHT_TO_SEND_G`, or the UI stays stuck on "remove material" with an empty scale. |
+| `handleWeighWorkflow` | The removal-detected reset block captures `gRecentlyRemovedUid1`/`2` and `gRemovalDetectedMs` from `lastUID`/`lastUID2` *just before* clearing them. That is what lets a delayed RFID echo of a tag that was just lifted off be told apart from a genuinely new tag — the fix for the phantom triple-beep on spool removal. Its `WF_IDLE` branch must also keep clearing `lastUID`/`lastUID2`/`lastUIDLeft`/`lastUIDRight` once weight drops below `MIN_WEIGHT_TO_SEND_G`, or the UI stays stuck on "remove material" with an empty scale — but only once no reader has seen that tag for 3 s. A spool is read while it is being lowered, at ~0 g; clearing its UID then leaves the tag in the field, latched as a repeat by `isUidLatched`, and every scan after it ends "no UID" with the spool on the platform. |
 | `isDuplicateRecentUid` / `isUidLatched` | The dedup window is 1.5 s and was deliberately never widened. The phantom-beep bug it once seemed related to is handled by the separate, narrower mechanism above, checked only at the `playSoundTheme()` call sites. |
 | `isRapidChange` | Computes a real rate of change in g/s, independent of how often `loop()` happens to call it. The old fixed 50–100 ms gate effectively never engaged the fast filter, so every weight change crawled through the slow one. |
 | `processAutoTare` | There is exactly **one** auto-tare handler: the negative-drift one (1 s sustained, plus idle/empty guard, plus 10 s cooldown). An earlier "immediate" ~250 ms handler was removed because a firm spool placement's mechanical undershoot could trigger it, taring the scale onto the item's own weight while it sat on the platform. Do not reintroduce a short-debounce variant. |

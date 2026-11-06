@@ -34,15 +34,15 @@
 //   SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight) 10386-10489
 //   WEB SERVER                                           10490-11518
 //   CLOUD COMMUNICATION                                  11519-11701
-//   WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING) 11702-12209
-//   mDNS                                                 12210-12247
-//   SCALE                                                12248-12418
-//   ES8311 codec beep (I2S slave mode, Wire I2C @ 0x18)  12419-12536
-//   RFID                                                 12537-13619
-//   OTA — Over-the-air firmware + filesystem update    13620-14299
-//   LVGL bridge + main weigh screen                      14300-15239
-//   Remote live view: the screen out, taps back in       15240-16089
-//   SETUP & LOOP                                         16090-17335
+//   WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING) 11702-12225
+//   mDNS                                                 12226-12263
+//   SCALE                                                12264-12434
+//   ES8311 codec beep (I2S slave mode, Wire I2C @ 0x18)  12435-12552
+//   RFID                                                 12553-13635
+//   OTA — Over-the-air firmware + filesystem update    13636-14315
+//   LVGL bridge + main weigh screen                      14316-15255
+//   Remote live view: the screen out, taps back in       15256-16105
+//   SETUP & LOOP                                         16106-17351
 //
 //   To regenerate:  bash scripts/update_toc.sh
 // --- TOC END -----------------------------------------------
@@ -11786,7 +11786,23 @@ void handleWeighWorkflow(float w) {
         // (see tagActive in displayWeightWithState()). Previously the UID
         // was only cleared via the WF_DONE->IDLE transition, which never
         // fires for a scan that never reached a full send.
-        if (!noUidActive && w < MIN_WEIGHT_TO_SEND_G) {
+        //
+        // Not while a reader is still seeing that tag, though. A spool is read
+        // as it is lowered, before it touches the platform, so at that moment
+        // the weight is still ~0 g. Clearing the UID then was fatal: the tag
+        // stays in the field, the latch (isUidLatched) refuses it as a repeat,
+        // and every scan that followed ended "no UID" with the spool sitting
+        // there, weighed and never sent. gLastRfidUid1Ms/2Ms are refreshed at
+        // least every dedup window (1.5 s) while the tag is present, so 3 s
+        // means "this tag has genuinely gone".
+        const uint32_t UID_STILL_IN_FIELD_MS = 3000;
+        auto seenRecently = [&](const String& uid) {
+            if (uid.length() == 0) return false;
+            return (uid == gLastRfidUid1 && now - gLastRfidUid1Ms < UID_STILL_IN_FIELD_MS)
+                || (uid == gLastRfidUid2 && now - gLastRfidUid2Ms < UID_STILL_IN_FIELD_MS);
+        };
+        bool uidStillInField = seenRecently(lastUID) || seenRecently(lastUID2);
+        if (!noUidActive && w < MIN_WEIGHT_TO_SEND_G && !uidStillInField) {
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
             lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = "";
             gTwinFetchDone = false; gTwinFetchPending = false; gTwinFetchUID = ""; gTwinFetchResult = "";

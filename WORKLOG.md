@@ -17,3 +17,12 @@ Reset this file to the header above at each checkpoint. Nothing is lost: the raw
 log lives in git history and the synthesised entry lives in the changelog.
 
 ---
+
+### Fixed
+
+- A spool whose tag was read while it was still being lowered (scale at ~0 g)
+  was never weighed: the idle branch cleared its UID as stale, the tag stayed in
+  the field latched as a repeat, and every following scan ended "no UID" while
+  the screen showed "waiting for NFC". The idle branch now keeps a UID that a
+  reader has seen within the last 3 s. `TigerTagSplashESP32.ino`
+  (`handleWeighWorkflow`), `CODEMAP.md`.
